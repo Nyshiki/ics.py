@@ -388,7 +388,7 @@ def end(event, line):
 
 @Event._extracts('RRULE')
 def summary(event, line):
-    event.rrule = unescape_string(line.value) if line else None
+    event._rrule = unescape_string(line.value) if line else None
 
 
 @Event._extracts('SUMMARY')

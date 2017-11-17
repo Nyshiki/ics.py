@@ -148,7 +148,6 @@ class TestEvent(unittest.TestCase):
         e = c.events[0]
         self.assertIsNotNone(e.rrule)
         self.assertEqual(e.rrule, "FREQ=DAILY;COUNT=100")
-        self.assertEqual(str(e.rrule), "RRULE:FREQ=DAILY;COUNT=100")
 
     def test_always_uid(self):
         e = Event()
