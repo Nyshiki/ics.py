@@ -143,7 +143,8 @@ class Calendar(Component):
 
 @Calendar._extracts('PRODID')
 def prodid(calendar, prodid):
-    calendar._creator = prodid.value
+    if prodid:
+        calendar._creator = prodid.value
 
 
 __version_default__ = [ContentLine(name='VERSION', value='2.0')]
