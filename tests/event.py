@@ -4,7 +4,7 @@ import arrow
 from ics.event import Event
 from ics.icalendar import Calendar
 from ics.parse import Container
-from .fixture import cal12, cal13, cal15, cal16, cal17, cal18, cal19, cal20
+from .fixture import cal12, cal13, cal15, cal16, cal17, cal18, cal19, cal20, cal26
 
 CRLF = "\r\n"
 
@@ -142,6 +142,13 @@ class TestEvent(unittest.TestCase):
         e5.duration = {'days': 6, 'hours': 2}
         self.assertEqual(e5.end, arrow.get("1993/05/30T02:00"))
         self.assertEqual(e5.duration, timedelta(hours=146))
+
+    def test_event_with_recurrence_rule(self):
+        c = Calendar(cal26)
+        e = c.events[0]
+        self.assertIsNotNone(e.rrule)
+        self.assertEqual(e.rrule, "FREQ=DAILY;COUNT=100")
+        self.assertEqual(str(e.rrule), "RRULE:FREQ=DAILY;COUNT=100")
 
     def test_always_uid(self):
         e = Event()

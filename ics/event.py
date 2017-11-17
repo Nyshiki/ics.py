@@ -386,6 +386,11 @@ def end(event, line):
         # one could also save the end_precision to check that if begin_precision is day, end_precision also is
 
 
+@Event._extracts('RRULE')
+def summary(event, line):
+    event.rrule = unescape_string(line.value) if line else None
+
+
 @Event._extracts('SUMMARY')
 def summary(event, line):
     event.name = unescape_string(line.value) if line else None
