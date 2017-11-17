@@ -47,6 +47,8 @@ class Calendar(Component):
         self._unused = Container(name='VCALENDAR')
         self.scale = None
         self.method = None
+        self.name = ""
+        self.timezone = None
 
         self.timeline = Timeline(self)
 
@@ -139,7 +141,7 @@ class Calendar(Component):
 # ----- Inputs -----
 # ------------------
 
-@Calendar._extracts('PRODID', required=True)
+@Calendar._extracts('PRODID')
 def prodid(calendar, prodid):
     calendar._creator = prodid.value
 
@@ -194,6 +196,18 @@ def timezone(calendar, vtimezones):
         # timezones is a tzical object and could contain multiple timezones
         for key in timezones.keys():
             calendar._timezones[key] = timezones.get(key)
+
+
+@Calendar._extracts('X-WR-CALNAME')
+def x_calname(calendar, line):
+    if line:
+        calendar.name = line.value
+
+
+@Calendar._extracts('X-WR-TIMEZONE')
+def x_timezone(calendar, line):
+    if line:
+        calendar.timezone = line.value
 
 
 @Calendar._extracts('VEVENT', multiple=True)
