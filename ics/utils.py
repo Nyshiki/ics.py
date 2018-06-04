@@ -5,9 +5,10 @@ from __future__ import unicode_literals, absolute_import
 
 from arrow.arrow import Arrow
 from datetime import timedelta
-from six import StringIO, string_types, text_type, integer_types
 
 from uuid import uuid4
+
+from arrow.parser import ParserError
 from dateutil.tz import gettz
 import arrow
 import re
@@ -15,6 +16,17 @@ import re
 from . import parse
 
 tzutc = arrow.utcnow().tzinfo
+
+
+def no_separator_iso(time_str):
+    return arrow.get(time_str, 'YYYYMMDDTHHmm')
+
+
+def wide_get(time_str):
+    try:
+        return arrow.get(time_str)
+    except ParserError:
+        return no_separator_iso(time_str)
 
 
 def remove_x(container):
@@ -43,13 +55,13 @@ def iso_to_arrow(time_container, available_tz={}):
         val = time_container.value
 
     if tz and not (val[-1].upper() == 'Z'):
-        naive = arrow.get(val).naive
+        naive = wide_get(val).naive
         selected_tz = gettz(tz)
         if not selected_tz:
             selected_tz = available_tz.get(tz, 'UTC')
         return arrow.get(naive, selected_tz)
     else:
-        return arrow.get(val)
+        return wide_get(val)
 
     # TODO : support floating (ie not bound to any time zone) times (cf
     # http://www.kanzaki.com/docs/ical/dateTime.html)

@@ -52,8 +52,7 @@ class Event(Component):
                  url=None,
                  transparent=False,
                  alarms=None,
-                 rrule=None):
-                 alarms=None,
+                 rrule=None,
                  categories=None):
         """Instantiates a new :class:`ics.event.Event`.
 
@@ -153,7 +152,7 @@ class Event(Component):
     def begin(self, value):
         value = get_arrow(value)
         if value and self._end_time and value > self._end_time:
-            raise ValueError('Begin must be before end')
+            raise ValueError("Begin must be before end")
         self._begin = value
         self._begin_precision = 'second'
 
