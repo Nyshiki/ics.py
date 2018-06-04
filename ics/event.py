@@ -3,12 +3,12 @@
 
 from __future__ import unicode_literals, absolute_import
 
-from six import PY2, PY3, StringIO, string_types, text_type, integer_types
-from six.moves import filter, map, range
+from six import StringIO, string_types, text_type, integer_types
 
 import arrow
 import copy
-from datetime import timedelta
+import re
+from datetime import timedelta, datetime
 
 from .alarm import AlarmFactory
 from .component import Component
@@ -53,6 +53,8 @@ class Event(Component):
                  transparent=False,
                  alarms=None,
                  rrule=None):
+                 alarms=None,
+                 categories=None):
         """Instantiates a new :class:`ics.event.Event`.
 
         Args:
@@ -66,7 +68,8 @@ class Event(Component):
             location (string)
             url (string)
             transparent (Boolean)
-            alarms (:class:`ics.alarm.Alarm`)
+            alarms (:class:`ics.alarm.Alarm`
+            categories (set of string)
 
         Raises:
             ValueError: if `end` and `duration` are specified at the same time
@@ -84,6 +87,7 @@ class Event(Component):
         self.url = url
         self.transparent = transparent
         self.alarms = set()
+        self.categories = set()
         self.rrule = rrule
         self._unused = Container(name='VEVENT')
 
@@ -101,6 +105,9 @@ class Event(Component):
 
         if alarms is not None:
             self.alarms.update(set(alarms))
+
+        if categories is not None:
+            self.categories.update(set(categories))
 
     def has_end(self):
         """
@@ -254,80 +261,161 @@ class Event(Component):
         else:
             self._end_time = calculated_end
 
-    def __urepr__(self):
-        """Should not be used directly. Use self.__repr__ instead.
-
-        Returns:
-            unicode: a unicode representation (__repr__) of the event.
-        """
+    def __repr__(self):
         name = "'{}' ".format(self.name) if self.name else ''
         if self.all_day:
             if not self._end_time or self._begin == self._end_time:
-                return "<all-day Event {}{}>".format(name, self.begin.strftime("%F"))
+                return "<all-day Event {}{}>".format(name, self.begin.strftime('%Y-%m-%d'))
             else:
-                return "<all-day Event {}begin:{} end:{}>".format(name, self._begin.strftime("%F"), self._end_time.strftime("%F"))
+                return "<all-day Event {}begin:{} end:{}>".format(name, self._begin.strftime('%Y-%m-%d'), self._end_time.strftime('%Y-%m-%d'))
         elif self.begin is None:
             return "<Event '{}'>".format(self.name) if self.name else "<Event>"
         else:
             return "<Event {}begin:{} end:{}>".format(name, self.begin, self.end)
 
-    def __lt__(self, other):
+    def starts_within(self, other):
         if not isinstance(other, Event):
             raise NotImplementedError(
                 'Cannot compare Event and {}'.format(type(other)))
-        if self.begin is None and other.begin is None:
-            if self.name is None and other.name is None:
-                return False
-            elif self.name is None:
-                return True
-            elif other.name is None:
-                return False
-            else:
-                return self.name < other.name
-        return self.begin < other.begin
+        return self.begin >= other.begin and self.begin <= other.end
+
+    def ends_within(self, other):
+        if not isinstance(other, Event):
+            raise NotImplementedError(
+                'Cannot compare Event and {}'.format(type(other)))
+        return self.end >= other.begin and self.end <= other.end
+
+    def intersects(self, other):
+        if not isinstance(other, Event):
+            raise NotImplementedError(
+                'Cannot compare Event and {}'.format(type(other)))
+        return (self.starts_within(other)
+                or self.ends_within(other)
+                or other.starts_within(self)
+                or other.ends_within(self))
+
+    __xor__ = intersects
+
+    def includes(self, other):
+        if isinstance(other, Event):
+            return other.starts_within(self) and other.ends_within(self)
+        if isinstance(other, datetime):
+            return self.begin <= other and self.end >= other
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
+
+    def is_included_in(self, other):
+        if isinstance(other, Event):
+            return other.includes(self)
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
+
+    __in__ = is_included_in
+
+    def __lt__(self, other):
+        if isinstance(other, Event):
+            if self.begin is None and other.begin is None:
+                if self.name is None and other.name is None:
+                    return False
+                elif self.name is None:
+                    return True
+                elif other.name is None:
+                    return False
+                else:
+                    return self.name < other.name
+            return self.begin < other.begin
+        if isinstance(other, datetime):
+            return self.begin < other
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
 
     def __le__(self, other):
-        if not isinstance(other, Event):
-            raise NotImplementedError(
-                'Cannot compare Event and {}'.format(type(other)))
-        if self.begin is None and other.begin is None:
-            if self.name is None and other.name is None:
-                return True
-            elif self.name is None:
-                return True
-            elif other.name is None:
-                return False
-            else:
-                return self.name <= other.name
-        return self.begin <= other.begin
+        if isinstance(other, Event):
+            if self.begin is None and other.begin is None:
+                if self.name is None and other.name is None:
+                    return True
+                elif self.name is None:
+                    return True
+                elif other.name is None:
+                    return False
+                else:
+                    return self.name <= other.name
+            return self.begin <= other.begin
+        if isinstance(other, datetime):
+            return self.begin <= other
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
 
     def __gt__(self, other):
-        if not isinstance(other, Event):
-            raise NotImplementedError(
-                'Cannot compare Event and {}'.format(type(other)))
-        if self.begin is None and other.begin is None:
-            return self.name > other.name
-        return self.begin > other.begin
+        if isinstance(other, Event):
+            if self.begin is None and other.begin is None:
+                # TODO : handle py3 case when a name is None
+                return self.name > other.name
+            return self.begin > other.begin
+        if isinstance(other, datetime):
+            return self.begin > other
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
 
     def __ge__(self, other):
-        if not isinstance(other, Event):
-            raise NotImplementedError(
-                'Cannot compare Event and {}'.format(type(other)))
-        if self.begin is None and other.begin is None:
-            return self.name >= other.name
-        return self.begin >= other.begin
+        if isinstance(other, Event):
+            if self.begin is None and other.begin is None:
+                # TODO : handle py3 case when a name is None
+                return self.name >= other.name
+            return self.begin >= other.begin
+        if isinstance(other, datetime):
+            return self.begin >= other
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
 
     def __or__(self, other):
-        begin, end = None, None
-        if self.begin and other.begin:
-            begin = max(self.begin, other.begin)
-        if self.end and other.end:
-            end = min(self.end, other.end)
-        return (begin, end) if begin and end and begin < end else (None, None)
+        if isinstance(other, Event):
+            begin, end = None, None
+            if self.begin and other.begin:
+                begin = max(self.begin, other.begin)
+            if self.end and other.end:
+                end = min(self.end, other.end)
+            return (begin, end) if begin and end and begin < end else (None, None)
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
 
     def __eq__(self, other):
         """Two events are considered equal if they have the same uid."""
-        return self.uid == other.uid
+        if isinstance(other, Event):
+            return self.uid == other.uid
+        raise NotImplementedError(
+            'Cannot compare Event and {}'.format(type(other)))
+
+    def time_equals(self, other):
+        return (self.begin == other.begin) and (self.end == other.end)
+
+    def join(self, other, *args, **kwarg):
+        """Create a new event which covers the time range of two intersecting events
+
+        All extra parameters are passed to the Event constructor.
+
+        Args:
+            other: the other event
+
+        Returns:
+            a new Event instance
+        """
+        event = Event(*args, **kwarg)
+        if self.intersects(other):
+            if self.starts_within(other):
+                event.begin = other.begin
+            else:
+                event.begin = self.begin
+
+            if self.ends_within(other):
+                event.end = other.end
+            else:
+                event.end = self.end
+
+            return event
+        raise ValueError('Cannot join {} with {}: they don\'t intersect.'.format(self, other))
+
+    __and__ = join
 
     def clone(self):
         """
@@ -336,6 +424,7 @@ class Event(Component):
         clone = copy.copy(self)
         clone._unused = clone._unused.clone()
         clone.alarms = copy.copy(self.alarms)
+        clone.categories = copy.copy(self.categories)
         return clone
 
     def __hash__(self):
@@ -430,8 +519,16 @@ def alarms(event, lines):
     def alarm_factory(x):
         af = AlarmFactory.get_type_from_container(x)
         return af._from_container(x)
-
     event.alarms = list(map(alarm_factory, lines))
+
+
+@Event._extracts('CATEGORIES')
+def categories(event, line):
+    event.categories = set()
+    if line:
+        # In the regular expression: Only match unquoted commas.
+        for cat in re.split("(?<!\\\\),", line.value):
+            event.categories.update({unescape_string(cat)})
 
 
 # -------------------
@@ -526,3 +623,9 @@ def o_alarm(event, container):
 def o_rrule(event, container):
     if event.rrule:
         container.append(ContentLine('RRULE', value=event.rrule))
+
+
+@Event._outputs
+def o_categories(event, container):
+    if bool(event.categories):
+        container.append(ContentLine('CATEGORIES', value=','.join([escape_string(s) for s in event.categories])))

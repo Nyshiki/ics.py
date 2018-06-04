@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals, absolute_import
-from six import PY2, PY3
-from six.moves import filter, map, range
 
 import collections
 
@@ -41,8 +39,7 @@ class ContentLine:
         params_str = ''
         for pname in self.params:
             params_str += ';{}={}'.format(pname, ','.join(self.params[pname]))
-        ret = "{}{}:{}".format(self.name, params_str, self.value)
-        return ret.encode('utf-8') if PY2 else ret
+        return "{}{}:{}".format(self.name, params_str, self.value)
 
     def __repr__(self):
         return "<ContentLine '{}' with {} parameter{}. Value='{}'>" \
@@ -76,7 +73,7 @@ class ContentLine:
         params = {}
         for paramstr in params_strings:
             if '=' not in paramstr:
-                raise ParseError("No '=' in line '{}'".format(line))
+                raise ParseError("No '=' in line '{}'".format(paramstr))
             pname, pvals = paramstr.split('=', 1)
             params[pname] = pvals.split(',')
         return cls(name, params, value)
@@ -99,8 +96,6 @@ class Container(list):
 
     def __str__(self):
         name = self.name
-        if PY2:
-            name = name.encode('utf-8')  # can self.name ever contain a non-ASCII character?
         ret = ['BEGIN:' + name]
         for line in self:
             ret.append(str(line))
@@ -142,7 +137,7 @@ def unfold_lines(physical_lines):
             continue
         elif not current_line:
             current_line = line.strip('\r')
-        elif line[0] == ' ':
+        elif line[0] in (' ', '\t'):
             # TODO : remove more spaces if needed
             current_line += line[1:].strip('\r')
         else:

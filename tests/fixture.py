@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
-from six import PY2, PY3
-from six.moves import filter, map, range
+
 
 cal1 = """
 BEGIN:VCALENDAR
@@ -44,6 +43,14 @@ DESCRIPTION:Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
  um, quis porta nibh ultricies congue. Pellentesque nisl mi, molestie id
  sem vel, vehicula nullam.
 END:VEVENT
+BEGIN:VTODO
+DTSTAMP:20180218T154700Z
+UID:Uid
+DESCRIPTION:Lorem ipsum dolor sit amet.
+PERCENT-COMPLETE:0
+PRIORITY:0
+SUMMARY:Name
+END:VTODO
 END:VCALENDAR
 """
 
@@ -201,6 +208,7 @@ DTSTART;TZID=Europe/Berlin:20120608T202500
 DTEND;TZID=Europe/Berlin:20120608T212500
 LOCATION:MUC
 URL:http://example.com/pub/calendars/jsmith/mytime.ics
+CATEGORIES:Simple Category,My "Quoted" Category,Category\\, with comma
 END:VEVENT
 
 END:VCALENDAR
@@ -378,7 +386,109 @@ END:VEVENT
 END:VCALENDAR
 """
 
-cal26 = """
+# Event with a tabbed line fold
+cal26 = u"""
+BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTEND;TZID=Europe/Berlin:20120608T212500
+SUMMARY:Name
+DTSTART;TZID=Europe/Berlin:20120608T202500
+LOCATION:MUC
+SEQUENCE:0
+UID:040000008200E00074C5B7101A82E0080000000050B9861DFE30D101000000000000000
+	010000000DC18788D5CDAF947A99D8A91D04C601C
+BEGIN:VALARM
+TRIGGER:-PT1H
+DESCRIPTION:Event reminder
+ACTION:DISPLAY
+END:VALARM
+END:VEVENT
+END:VCALENDAR
+"""
+
+# All VTODO attributes beside duration.
+cal27 = """
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.9//EN
+BEGIN:VTODO
+DTSTAMP:20180218T154700Z
+UID:Uid
+COMPLETED:20180418T150000Z
+CREATED:20180218T154800Z
+DESCRIPTION:Lorem ipsum dolor sit amet.
+DTSTART:20180218T164800Z
+LOCATION:Earth
+PERCENT-COMPLETE:0
+PRIORITY:0
+SUMMARY:Name
+URL:https://www.example.com/cal.php/todo.ics
+DURATION:PT10M
+SEQUENCE:0
+BEGIN:VALARM
+TRIGGER:-PT1H
+DESCRIPTION:Event reminder
+ACTION:DISPLAY
+END:VALARM
+END:VTODO
+END:VCALENDAR
+"""
+
+# Test due.
+cal28 = """
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.9//EN
+BEGIN:VTODO
+DTSTAMP:20180218T154741Z
+UID:Uid
+DUE:20180218T164800Z
+END:VTODO
+END:VCALENDAR
+"""
+
+# Test error due and duration.
+cal29 = """
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.9//EN
+BEGIN:VTODO
+DTSTAMP:20180218T154741Z
+UID:Uid
+DURATION:PT10M
+DUE:20180218T164800Z
+END:VTODO
+END:VCALENDAR
+"""
+
+cal30 = """
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.9//EN
+BEGIN:VTODO
+DTSTAMP:20180218T154741Z
+UID:Uid
+DUE:20180218T164800Z
+DURATION:PT10M
+END:VTODO
+END:VCALENDAR
+"""
+
+cal31 = """
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.9//EN
+BEGIN:VTODO
+DTSTAMP:20180218T154741Z
+UID:Uid
+SUMMARY:Hello, \\n World\\; This is a backslash : \\\\ and another new \\N line
+LOCATION:In\\, every text field
+DESCRIPTION:Yes\\, all of them\\;
+END:VTODO
+END:VCALENDAR
+"""
+
+cal262 = """
 BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Apple Inc.//Mac OS X 10.8//EN
@@ -457,6 +567,14 @@ quamdolor luctus augue, id cursus purus justo vel lorem. \
 Ut feugiat enim ipsum, quis porta nibh ultricies congue. \
 Pellentesque nisl mi, molestie idsem vel, vehicula nullam.',
     'END:VEVENT',
+    'BEGIN:VTODO',
+    'DTSTAMP:20180218T154700Z',
+    'UID:Uid',
+    'DESCRIPTION:Lorem ipsum dolor sit amet.',
+    'PERCENT-COMPLETE:0',
+    'PRIORITY:0',
+    'SUMMARY:Name',
+    'END:VTODO',
     'END:VCALENDAR',
 ]
 
@@ -474,6 +592,24 @@ unfolded_cal21 = [
     'TRIGGER:-PT1H',
     'REPEAT:2',
     'DURATION:PT10M',
+    'DESCRIPTION:Event reminder',
+    'ACTION:DISPLAY',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+]
+
+unfolded_cal26 = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'DTEND;TZID=Europe/Berlin:20120608T212500',
+    'SUMMARY:Name',
+    'DTSTART;TZID=Europe/Berlin:20120608T202500',
+    'LOCATION:MUC',
+    'SEQUENCE:0',
+    'UID:040000008200E00074C5B7101A82E0080000000050B9861DFE30D101000000000000000010000000DC18788D5CDAF947A99D8A91D04C601C',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT1H',
     'DESCRIPTION:Event reminder',
     'ACTION:DISPLAY',
     'END:VALARM',
