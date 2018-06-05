@@ -50,6 +50,7 @@ class Calendar(Component):
         self.scale = None
         self.method = None
         self.name = ""
+        self.color = None
         self.timezone = None
 
         self.timeline = Timeline(self)
@@ -204,6 +205,13 @@ def timezone(calendar, vtimezones):
 def x_calname(calendar, line):
     if line:
         calendar.name = line.value
+
+
+@Calendar._extracts('X-APPLE-CALENDAR-COLOR')
+def x_color(calendar, line):
+    if line:
+        if line.value.startswith("#") and len(line.value) >= 7:
+            calendar.color = line.value[:7]
 
 
 @Calendar._extracts('X-WR-TIMEZONE')
