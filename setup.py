@@ -60,7 +60,7 @@ setup(
     author_email='nikita.marchant@gmail.com',
     install_requires=[
         "python-dateutil",
-        "arrow==0.4.2",
+        "arrow==0.12.1",
         "six>1.5",
     ],
     license=__license__,
