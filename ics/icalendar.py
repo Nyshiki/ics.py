@@ -47,9 +47,9 @@ class Calendar(Component):
         If ``imports`` is specified, every other argument will be ignored.
         """
 
-        self._timezones: Dict = {} # FIXME mypy
-        self.events: Set[Event] = set()
-        self.todos: Set[Todo] = set()
+        self._timezones = {} # FIXME mypy
+        self.events = set()
+        self.todos = set()
         self.extra = Container(name='VCALENDAR')
         self.scale = None
         self.method = None

@@ -1,6 +1,7 @@
 import copy
+from collections import namedtuple
 from datetime import datetime, timedelta
-from typing import (Dict, Iterable, List, NamedTuple, Optional, Set,
+from typing import (Dict, Iterable, List, Optional, Set,
                     Tuple, Union)
 
 from arrow import Arrow
@@ -10,14 +11,12 @@ from .attendee import Attendee, Organizer
 from .component import Component
 from ics.grammar.parse import Container
 from .types import ArrowLike
-from .utils import (get_arrow, uid_gen)
+from .utils import (get_arrow, uid_gen, escape_string)
 from ics.parsers.event_parser import EventParser
 from ics.serializers.event_serializer import EventSerializer
 
 
-class Geo(NamedTuple):
-    latitude: float
-    longitude: float
+Geo = namedtuple("Geo", ["latitude", "longitude"])
 
 
 class Event(Component):
@@ -84,25 +83,25 @@ class Event(Component):
             ValueError: if `end` and `duration` are specified at the same time
         """
 
-        self._duration: Optional[timedelta] = None
-        self._end_time: Optional[ArrowLike] = None
-        self._begin: Optional[ArrowLike] = None
+        self._duration = None
+        self._end_time = None
+        self._begin = None
         self._begin_precision = None
-        self._status: Optional[str] = None
-        self._classification: Optional[str] = None
+        self._status = None
+        self._classification = None
         self._rrule = None
 
-        self.organizer: Optional[Organizer] = organizer
-        self.uid: str = uid_gen() if not uid else uid
-        self.description: Optional[str] = description
-        self.created: Optional[ArrowLike] = get_arrow(created)
-        self.last_modified: Optional[ArrowLike] = get_arrow(last_modified)
-        self.location: Optional[str] = location
-        self.url: Optional[str] = url
-        self.transparent: Optional[bool] = transparent
-        self.alarms: List[BaseAlarm] = list()
-        self.attendees: Set[Attendee] = set()
-        self.categories: Set[str] = set()
+        self.organizer = organizer
+        self.uid = uid_gen() if not uid else uid
+        self.description = description
+        self.created = get_arrow(created)
+        self.last_modified = get_arrow(last_modified)
+        self.location = location
+        self.url = url
+        self.transparent = transparent
+        self.alarms = list()
+        self.attendees = set()
+        self.categories = set()
         self.rrule = rrule
         self.geo = geo
         self.extra = Container(name='VEVENT')
