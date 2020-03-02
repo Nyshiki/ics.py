@@ -1,14 +1,13 @@
 import unittest
-from collections import Iterable
+from collections.abc import Iterable
+
 import arrow
 
-from ics.parse import Container
-
-from ics.icalendar import Calendar
 from ics.event import Event
+from ics.grammar.parse import Container
+from ics.icalendar import Calendar
 from ics.todo import Todo
-
-from .fixture import cal1, cal2, cal10, cal12, cal14
+from .fixture import cal1, cal10, cal12, cal14, cal34
 
 
 class TestCalendar(unittest.TestCase):
@@ -22,7 +21,7 @@ class TestCalendar(unittest.TestCase):
         self.assertSequenceEqual(c.todos, [])
         self.assertEqual(c.method, None)
         self.assertEqual(c.scale, None)
-        self.assertEqual(c._unused, Container(name='VCALENDAR'))
+        self.assertEqual(c.extra, Container(name='VCALENDAR'))
         self.assertEqual(c._timezones, {})
 
     def test_selfload(self):
@@ -38,7 +37,6 @@ class TestCalendar(unittest.TestCase):
             self.assertEqual(str(d), str(e))
 
     def test_repr(self):
-        # TODO : more cases
         c = Calendar()
         self.assertEqual(c.__repr__(), '<Calendar with 0 event and 0 todo>')
 
@@ -59,7 +57,6 @@ class TestCalendar(unittest.TestCase):
             self.assertSequenceEqual(s.split('\n'), list(i_with_no_lr))
 
     def test_eq(self):
-        # TODO : better equality check
         c0, c1 = Calendar(), Calendar()
         e = Event()
 
@@ -160,6 +157,10 @@ class TestCalendar(unittest.TestCase):
 
         c = Calendar(cal10)
         self.assertEqual(c.version, u'2.0')
+        lines = str(c).splitlines()
+        self.assertEqual(lines[:3], cal10.strip().splitlines()[:3])
+        self.assertEqual("VERSION:2.0", lines[1])
+        self.assertIn("PRODID", lines[2])
 
         c = Calendar(cal14)
         self.assertEqual(c.version, u'42')
@@ -206,12 +207,21 @@ class TestCalendar(unittest.TestCase):
         c = Calendar(cal1)
         self.assertEqual(c.creator, '-//Apple Inc.//Mac OS X 10.9//EN')
         self.assertEqual(c.method, 'PUBLISH')
-        e = c.events[0]
+        e = next(iter(c.events))
         self.assertFalse(e.all_day)
         self.assertEqual(arrow.get(2013, 10, 29, 9, 30), e.begin)
         self.assertEqual(arrow.get(2013, 10, 29, 10, 30), e.end)
         self.assertEqual(1, len(c.events))
-        t = c.todos[0]
+        t = next(iter(c.todos))
         self.assertEqual(t.dtstamp, arrow.get(2018, 2, 18, 15, 47))
         self.assertEqual(t.uid, 'Uid')
         self.assertEqual(len(c.todos), 1)
+
+    def test_multiple(self):
+        cals = Calendar.parse_multiple(cal34)
+        self.assertEqual(len(cals), 2)
+
+        e1 = list(cals[0].events)[0]
+        self.assertEqual(e1.name, "a")
+        e2 = list(cals[1].events)[0]
+        self.assertEqual(e2.name, "b")

@@ -1,30 +1,23 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-from __future__ import unicode_literals, absolute_import
-
-from six import StringIO, string_types, text_type, integer_types
-
-import arrow
 import copy
-import re
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
+from typing import (Dict, Iterable, List, NamedTuple, Optional, Set,
+                    Tuple, Union)
 
-from .alarm import AlarmFactory
+from arrow import Arrow
+
+from .alarm.base import BaseAlarm
+from .attendee import Attendee, Organizer
 from .component import Component
-from .utils import (
-    parse_duration,
-    timedelta_to_duration,
-    iso_to_arrow,
-    iso_precision,
-    get_arrow,
-    arrow_to_iso,
-    arrow_date_to_iso,
-    uid_gen,
-    unescape_string,
-    escape_string,
-)
-from .parse import ContentLine, Container
+from ics.grammar.parse import Container
+from .types import ArrowLike
+from .utils import (get_arrow, uid_gen)
+from ics.parsers.event_parser import EventParser
+from ics.serializers.event_serializer import EventSerializer
+
+
+class Geo(NamedTuple):
+    latitude: float
+    longitude: float
 
 
 class Event(Component):
@@ -34,65 +27,89 @@ class Event(Component):
     Can be full-day or between two instants.
     Can be defined by a beginning instant and
     a duration *or* end instant.
+
+    Unsupported event attributes can be found in `event.extra`,
+    a :class:`ics.parse.Container`. You may add some by appending a
+    :class:`ics.parse.ContentLine` to `.extra`
     """
 
-    _TYPE = "VEVENT"
-    _EXTRACTORS = []
-    _OUTPUTS = []
+    class Meta:
+        name = "VEVENT"
+        parser = EventParser
+        serializer = EventSerializer
 
     def __init__(self,
-                 name=None,
-                 begin=None,
-                 end=None,
-                 duration=None,
-                 uid=None,
-                 description=None,
-                 created=None,
-                 location=None,
-                 url=None,
-                 transparent=False,
-                 alarms=None,
-                 rrule=None,
-                 categories=None):
+                 name: str = None,
+                 begin: ArrowLike = None,
+                 end: ArrowLike = None,
+                 duration: timedelta = None,
+                 uid: str = None,
+                 description: str = None,
+                 created: ArrowLike = None,
+                 last_modified: ArrowLike = None,
+                 location: str = None,
+                 url: str = None,
+                 transparent: bool = None,
+                 alarms: Iterable[BaseAlarm] = None,
+                 rrule: str = None,
+                 attendees: Iterable[Attendee] = None,
+                 categories: Iterable[str] = None,
+                 status: str = None,
+                 organizer: Organizer = None,
+                 geo=None,
+                 classification: str = None,
+                 ) -> None:
         """Instantiates a new :class:`ics.event.Event`.
 
         Args:
-            name (string) : rfc5545 SUMMARY property
+            name: rfc5545 SUMMARY property
             begin (Arrow-compatible)
             end (Arrow-compatible)
-            duration (datetime.timedelta)
-            uid (string): must be unique
-            description (string)
+            duration
+            uid: must be unique
+            description
             created (Arrow-compatible)
-            location (string)
-            url (string)
-            transparent (Boolean)
-            alarms (:class:`ics.alarm.Alarm`
-            categories (set of string)
+            last_modified (Arrow-compatible)
+            location
+            url
+            transparent
+            alarms
+            attendees
+            categories
+            status
+            organizer
+            classification
 
         Raises:
             ValueError: if `end` and `duration` are specified at the same time
         """
 
-        self._duration = None
-        self._end_time = None
-        self._begin = None
+        self._duration: Optional[timedelta] = None
+        self._end_time: Optional[ArrowLike] = None
+        self._begin: Optional[ArrowLike] = None
         self._begin_precision = None
+        self._status: Optional[str] = None
+        self._classification: Optional[str] = None
         self._rrule = None
-        self.uid = uid_gen() if not uid else uid
-        self.description = description
-        self.created = get_arrow(created)
-        self.location = location
-        self.url = url
-        self.transparent = transparent
-        self.alarms = set()
-        self.categories = set()
+
+        self.organizer: Optional[Organizer] = organizer
+        self.uid: str = uid_gen() if not uid else uid
+        self.description: Optional[str] = description
+        self.created: Optional[ArrowLike] = get_arrow(created)
+        self.last_modified: Optional[ArrowLike] = get_arrow(last_modified)
+        self.location: Optional[str] = location
+        self.url: Optional[str] = url
+        self.transparent: Optional[bool] = transparent
+        self.alarms: List[BaseAlarm] = list()
+        self.attendees: Set[Attendee] = set()
+        self.categories: Set[str] = set()
         self.rrule = rrule
-        self._unused = Container(name='VEVENT')
+        self.geo = geo
+        self.extra = Container(name='VEVENT')
 
         self.name = name
         self.begin = begin
-        # TODO: DRY [1]
+
         if duration and end:
             raise ValueError(
                 'Event() may not specify an end and a duration \
@@ -103,12 +120,17 @@ class Event(Component):
             self.duration = duration
 
         if alarms is not None:
-            self.alarms.update(set(alarms))
+            self.alarms = list(alarms)
+        self.status = status
+        self.classification = classification
 
         if categories is not None:
             self.categories.update(set(categories))
 
-    def has_end(self):
+        if attendees is not None:
+            self.attendees.update(set(attendees))
+
+    def has_end(self) -> bool:
         """
         Return:
             bool: self has an end
@@ -137,8 +159,13 @@ class Event(Component):
 
         self._rrule = rrule_str
 
+    def add_attendee(self, attendee: Attendee):
+        """ Add an attendee to the attendees set
+        """
+        self.attendees.add(attendee)
+
     @property
-    def begin(self):
+    def begin(self) -> Arrow:
         """Get or set the beginning of the event.
 
         |  Will return an :class:`Arrow` object.
@@ -149,15 +176,15 @@ class Event(Component):
         return self._begin
 
     @begin.setter
-    def begin(self, value):
+    def begin(self, value: ArrowLike):
         value = get_arrow(value)
         if value and self._end_time and value > self._end_time:
-            raise ValueError("Begin must be before end")
+            raise ValueError('Begin must be before end')
         self._begin = value
         self._begin_precision = 'second'
 
     @property
-    def end(self):
+    def end(self) -> Arrow:
         """Get or set the end of the event.
 
         |  Will return an :class:`Arrow` object.
@@ -174,7 +201,7 @@ class Event(Component):
             return self.begin + self._duration
         elif self._end_time:  # if end is time defined
             if self.all_day:
-                return self._end_time + timedelta(days=1)
+                return self._end_time
             else:
                 return self._end_time
         elif self._begin:  # if end is not defined
@@ -187,9 +214,9 @@ class Event(Component):
             return None
 
     @end.setter
-    def end(self, value):
+    def end(self, value: ArrowLike):
         value = get_arrow(value)
-        if value and value < self._begin:
+        if value and self._begin and value < self._begin:
             raise ValueError('End must be after begin')
 
         self._end_time = value
@@ -197,7 +224,7 @@ class Event(Component):
             self._duration = None
 
     @property
-    def duration(self):
+    def duration(self) -> Optional[timedelta]:
         """Get or set the duration of the event.
 
         |  Will return a timedelta object.
@@ -216,7 +243,7 @@ class Event(Component):
             return None
 
     @duration.setter
-    def duration(self, value):
+    def duration(self, value: timedelta):
         if isinstance(value, dict):
             value = timedelta(**value)
         elif isinstance(value, timedelta):
@@ -230,6 +257,27 @@ class Event(Component):
         self._duration = value
 
     @property
+    def geo(self) -> Optional[Geo]:
+        """Get or set the geo position of the event.
+
+        |  Will return a namedtuple object.
+        |  May be set to any Geo, tuple or dict with latitude and longitude keys.
+        |  If set to a non null value, removes any already
+            existing geo.
+        """
+        return self._geo
+
+    @geo.setter
+    def geo(self, value: Union[Dict[str, float], Tuple[float, float], Geo, None]):
+        if isinstance(value, dict):
+            latitude, longitude = value['latitude'], value['longitude']
+            value = Geo(latitude, longitude)
+        elif value is not None:
+            latitude, longitude = value
+            value = Geo(latitude, longitude)
+        self._geo = value
+
+    @property
     def all_day(self):
         """
         Return:
@@ -238,31 +286,59 @@ class Event(Component):
         # the event may have an end, also given in 'day' precision
         return self._begin_precision == 'day'
 
-    def make_all_day(self):
+    def make_all_day(self) -> None:
         """Transforms self to an all-day event.
 
         The event will span all the days from the begin to the end day.
         """
-        was_instant = self.duration == timedelta(0)
-        old_end = self.end
-        self._duration = None
-        self._begin_precision = 'day'
-        self._begin = self._begin.floor('day')
-        if was_instant:
-            self._end_time = None
+        if self.all_day:
+            # Do nothing if we already are a all day event
             return
-        floored_end = old_end.floor('day')
-        # this "overflooring" must be done because end times are not included in the interval
-        calculated_end = floored_end - timedelta(days=1) if floored_end == old_end else floored_end
-        if calculated_end == self._begin:
-            # for a one day event, we don't need to save the _end_time
+
+        begin_day = self.begin.floor('day')
+        end_day = self.end.floor('day')
+
+        self._begin = begin_day
+
+        # for a one day event, we don't need a _end_time
+        if begin_day == end_day:
             self._end_time = None
         else:
-            self._end_time = calculated_end
+            self._end_time = end_day + timedelta(days=1)
 
-    def __repr__(self):
+        self._duration = None
+        self._begin_precision = 'day'
+
+    @property
+    def status(self) -> Optional[str]:
+        return self._status
+
+    @status.setter
+    def status(self, value: Optional[str]):
+        if isinstance(value, str):
+            value = value.upper()
+        statuses = (None, 'TENTATIVE', 'CONFIRMED', 'CANCELLED')
+        if value not in statuses:
+            raise ValueError('status must be one of %s' % ", ".join([repr(x) for x in statuses]))
+        self._status = value
+
+    @property
+    def classification(self):
+        return self._classification
+
+    @classification.setter
+    def classification(self, value):
+        if value is not None:
+            if not isinstance(value, str):
+                raise ValueError('classification must be a str')
+            self._classification = value
+        else:
+            self._classification = None
+
+    def __repr__(self) -> str:
         name = "'{}' ".format(self.name) if self.name else ''
         if self.all_day:
+            assert self._begin
             if not self._end_time or self._begin == self._end_time:
                 return "<all-day Event {}{}>".format(name, self.begin.strftime('%Y-%m-%d'))
             else:
@@ -272,19 +348,19 @@ class Event(Component):
         else:
             return "<Event {}begin:{} end:{}>".format(name, self.begin, self.end)
 
-    def starts_within(self, other):
+    def starts_within(self, other) -> bool:
         if not isinstance(other, Event):
             raise NotImplementedError(
                 'Cannot compare Event and {}'.format(type(other)))
         return self.begin >= other.begin and self.begin <= other.end
 
-    def ends_within(self, other):
+    def ends_within(self, other) -> bool:
         if not isinstance(other, Event):
             raise NotImplementedError(
                 'Cannot compare Event and {}'.format(type(other)))
         return self.end >= other.begin and self.end <= other.end
 
-    def intersects(self, other):
+    def intersects(self, other) -> bool:
         if not isinstance(other, Event):
             raise NotImplementedError(
                 'Cannot compare Event and {}'.format(type(other)))
@@ -295,7 +371,7 @@ class Event(Component):
 
     __xor__ = intersects
 
-    def includes(self, other):
+    def includes(self, other) -> bool:
         if isinstance(other, Event):
             return other.starts_within(self) and other.ends_within(self)
         if isinstance(other, datetime):
@@ -303,7 +379,7 @@ class Event(Component):
         raise NotImplementedError(
             'Cannot compare Event and {}'.format(type(other)))
 
-    def is_included_in(self, other):
+    def is_included_in(self, other) -> bool:
         if isinstance(other, Event):
             return other.includes(self)
         raise NotImplementedError(
@@ -311,7 +387,7 @@ class Event(Component):
 
     __in__ = is_included_in
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         if isinstance(other, Event):
             if self.begin is None and other.begin is None:
                 if self.name is None and other.name is None:
@@ -322,13 +398,24 @@ class Event(Component):
                     return False
                 else:
                     return self.name < other.name
-            return self.begin < other.begin
+            # if we arrive here, at least one of self.begin
+            # and other.begin is not None
+            # so if they are equal, they are both Arrow
+            elif self.begin == other.begin:
+                if self.end is None:
+                    return True
+                elif other.end is None:
+                    return False
+                else:
+                    return self.end < other.end
+            else:
+                return self.begin < other.begin
         if isinstance(other, datetime):
             return self.begin < other
         raise NotImplementedError(
             'Cannot compare Event and {}'.format(type(other)))
 
-    def __le__(self, other):
+    def __le__(self, other) -> bool:
         if isinstance(other, Event):
             if self.begin is None and other.begin is None:
                 if self.name is None and other.name is None:
@@ -339,53 +426,47 @@ class Event(Component):
                     return False
                 else:
                     return self.name <= other.name
-            return self.begin <= other.begin
+            elif self.begin == other.begin:
+                if self.end is None:
+                    return True
+                elif other.end is None:
+                    return False
+                else:
+                    return self.end <= other.end
+            else:
+                return self.begin <= other.begin
         if isinstance(other, datetime):
             return self.begin <= other
         raise NotImplementedError(
             'Cannot compare Event and {}'.format(type(other)))
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:
+        return not self.__le__(other)
+
+    def __ge__(self, other) -> bool:
+        return not self.__lt__(other)
+
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Event):
-            if self.begin is None and other.begin is None:
-                # TODO : handle py3 case when a name is None
-                return self.name > other.name
-            return self.begin > other.begin
-        if isinstance(other, datetime):
-            return self.begin > other
+            return (self.name == other.name
+            and self.begin == other.begin
+            and self.end == other.end
+            and self.duration == other.duration
+            and self.description == other.description
+            and self.created == other.created
+            and self.last_modified == other.last_modified
+            and self.location == other.location
+            and self.url == other.url
+            and self.transparent == other.transparent
+            and self.alarms == other.alarms
+            and self.attendees == other.attendees
+            and self.categories == other.categories
+            and self.status == other.status
+            and self.organizer == other.organizer)
         raise NotImplementedError(
             'Cannot compare Event and {}'.format(type(other)))
 
-    def __ge__(self, other):
-        if isinstance(other, Event):
-            if self.begin is None and other.begin is None:
-                # TODO : handle py3 case when a name is None
-                return self.name >= other.name
-            return self.begin >= other.begin
-        if isinstance(other, datetime):
-            return self.begin >= other
-        raise NotImplementedError(
-            'Cannot compare Event and {}'.format(type(other)))
-
-    def __or__(self, other):
-        if isinstance(other, Event):
-            begin, end = None, None
-            if self.begin and other.begin:
-                begin = max(self.begin, other.begin)
-            if self.end and other.end:
-                end = min(self.end, other.end)
-            return (begin, end) if begin and end and begin < end else (None, None)
-        raise NotImplementedError(
-            'Cannot compare Event and {}'.format(type(other)))
-
-    def __eq__(self, other):
-        """Two events are considered equal if they have the same uid."""
-        if isinstance(other, Event):
-            return self.uid == other.uid
-        raise NotImplementedError(
-            'Cannot compare Event and {}'.format(type(other)))
-
-    def time_equals(self, other):
+    def time_equals(self, other) -> bool:
         return (self.begin == other.begin) and (self.end == other.end)
 
     def join(self, other, *args, **kwarg):
@@ -421,210 +502,13 @@ class Event(Component):
         Returns:
             Event: an exact copy of self"""
         clone = copy.copy(self)
-        clone._unused = clone._unused.clone()
+        clone.extra = clone.extra.clone()
         clone.alarms = copy.copy(self.alarms)
         clone.categories = copy.copy(self.categories)
         return clone
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Returns:
             int: hash of self. Based on self.uid."""
         return int(''.join(map(lambda x: '%.3d' % ord(x), self.uid)))
-
-
-# ------------------
-# ----- Inputs -----
-# ------------------
-@Event._extracts('DTSTAMP')
-def created(event, line):
-    if line:
-        # get the dict of vtimezones passed to the classmethod
-        tz_dict = event._classmethod_kwargs['tz']
-        event.created = iso_to_arrow(line, tz_dict)
-
-
-@Event._extracts('DTSTART')
-def start(event, line):
-    if line:
-        # get the dict of vtimezones passed to the classmethod
-        tz_dict = event._classmethod_kwargs['tz']
-        event.begin = iso_to_arrow(line, tz_dict)
-        event._begin_precision = iso_precision(line.value)
-
-
-@Event._extracts('DURATION')
-def duration(event, line):
-    if line:
-        #TODO: DRY [1]
-        if event._end_time: # pragma: no cover
-            raise ValueError("An event can't have both DTEND and DURATION")
-        event._duration = parse_duration(line.value)
-
-
-@Event._extracts('DTEND')
-def end(event, line):
-    if line:
-        #TODO: DRY [1]
-        if event._duration:
-            raise ValueError("An event can't have both DTEND and DURATION")
-        # get the dict of vtimezones passed to the classmethod
-        tz_dict = event._classmethod_kwargs['tz']
-        event._end_time = iso_to_arrow(line, tz_dict)
-        # one could also save the end_precision to check that if begin_precision is day, end_precision also is
-
-
-@Event._extracts('RRULE')
-def summary(event, line):
-    event._rrule = unescape_string(line.value) if line else None
-
-
-@Event._extracts('SUMMARY')
-def summary(event, line):
-    event.name = unescape_string(line.value) if line else None
-
-
-@Event._extracts('DESCRIPTION')
-def description(event, line):
-    event.description = unescape_string(line.value) if line else None
-
-
-@Event._extracts('LOCATION')
-def location(event, line):
-    event.location = unescape_string(line.value) if line else None
-
-
-@Event._extracts('URL')
-def url(event, line):
-    event.url = unescape_string(line.value) if line else None
-
-
-@Event._extracts('TRANSP')
-def transparent(event, line):
-    if line:
-        event.transparent = line.value == 'TRANSPARENT'
-
-
-# TODO : make uid required ?
-# TODO : add option somewhere to ignore some errors
-@Event._extracts('UID')
-def uid(event, line):
-    if line:
-        event.uid = line.value
-
-
-@Event._extracts('VALARM', multiple=True)
-def alarms(event, lines):
-    def alarm_factory(x):
-        af = AlarmFactory.get_type_from_container(x)
-        return af._from_container(x)
-    event.alarms = list(map(alarm_factory, lines))
-
-
-@Event._extracts('CATEGORIES')
-def categories(event, line):
-    event.categories = set()
-    if line:
-        # In the regular expression: Only match unquoted commas.
-        for cat in re.split("(?<!\\\\),", line.value):
-            event.categories.update({unescape_string(cat)})
-
-
-# -------------------
-# ----- Outputs -----
-# -------------------
-@Event._outputs
-def o_created(event, container):
-    if event.created:
-        instant = event.created
-    else:
-        instant = arrow.now()
-
-    container.append(ContentLine('DTSTAMP', value=arrow_to_iso(instant)))
-
-
-@Event._outputs
-def o_start(event, container):
-    if event.begin and not event.all_day:
-        container.append(ContentLine('DTSTART', value=arrow_to_iso(event.begin)))
-
-
-@Event._outputs
-def o_all_day(event, container):
-    if event.begin and event.all_day:
-        container.append(ContentLine('DTSTART', params={'VALUE': ('DATE',)},
-                                     value=arrow_date_to_iso(event.begin)))
-
-
-@Event._outputs
-def o_duration(event, container):
-    # TODO : DURATION
-    if event._duration and event.begin:
-        representation = timedelta_to_duration(event._duration)
-        container.append(ContentLine('DURATION', value=representation))
-
-
-@Event._outputs
-def o_end(event, container):
-    if event.begin and event._end_time:
-        container.append(ContentLine('DTEND', value=arrow_to_iso(event.end)))
-
-
-@Event._outputs
-def o_summary(event, container):
-    if event.name:
-        container.append(ContentLine('SUMMARY', value=escape_string(event.name)))
-
-
-@Event._outputs
-def o_description(event, container):
-    if event.description:
-        container.append(ContentLine('DESCRIPTION', value=escape_string(event.description)))
-
-
-@Event._outputs
-def o_location(event, container):
-    if event.location:
-        container.append(ContentLine('LOCATION', value=escape_string(event.location)))
-
-
-@Event._outputs
-def o_url(event, container):
-    if event.url:
-        container.append(ContentLine('URL', value=escape_string(event.url)))
-
-
-@Event._outputs
-def o_transparent(event, container):
-    if event.transparent:
-        container.append(ContentLine('TRANSP', value=escape_string('TRANSPARENT')))
-    else:
-        container.append(ContentLine('TRANSP', value=escape_string('OPAQUE')))
-
-
-@Event._outputs
-def o_uid(event, container):
-    if event.uid:
-        uid = event.uid
-    else:
-        uid = uid_gen()
-
-    container.append(ContentLine('UID', value=uid))
-
-
-@Event._outputs
-def o_alarm(event, container):
-    for alarm in event.alarms:
-        container.append(str(alarm))
-
-
-@Event._outputs
-def o_rrule(event, container):
-    if event.rrule:
-        container.append(ContentLine('RRULE', value=event.rrule))
-
-
-@Event._outputs
-def o_categories(event, container):
-    if bool(event.categories):
-        container.append(ContentLine('CATEGORIES', value=','.join([escape_string(s) for s in event.categories])))

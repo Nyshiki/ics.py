@@ -1,11 +1,16 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+import sys
 
 from setuptools import setup
 from setuptools.command.test import test as TestCommand
-import sys
 
-from meta import __version__, __title__, __license__, __author__
+from ics.__meta__ import __author__, __license__, __title__, __version__
+
+with open("requirements.txt") as f:
+    install_requires = [line for line in f if line and line[0] not in "#-"]
+
+with open("dev/requirements-test.txt") as f:
+    tests_require = [line for line in f if line and line[0] not in "#-"]
 
 
 class PyTest(TestCommand):
@@ -28,12 +33,9 @@ class PyTest(TestCommand):
 
 
 def readme():
-    if sys.version_info.major > 2:
-        with open('README.rst', encoding='utf-8') as f:
-            return f.read()
-    else:
-        with open('README.rst') as f:
-            return f.read()
+    with open('README.rst', encoding='utf-8') as f:
+        return f.read()
+
 
 setup(
     name=__title__,
@@ -49,25 +51,23 @@ setup(
         'Topic :: Office/Business :: Scheduling',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Typing :: Typed',
 
     ],
     url='http://github.com/C4ptainCrunch/ics.py',
     author=__author__,
     author_email='nikita.marchant@gmail.com',
-    install_requires=[
-        "python-dateutil",
-        "arrow==0.12.1",
-        "six>1.5",
-    ],
+    install_requires=install_requires,
     license=__license__,
     packages=['ics'],
     include_package_data=True,
     cmdclass={'test': PyTest},
-    tests_require=['pytest', 'pytest-cov', 'pytest-flakes', 'pytest-pep8'],
+    tests_require=tests_require,
     test_suite="py.test",
     zip_safe=False,
 )
