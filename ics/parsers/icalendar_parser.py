@@ -9,9 +9,10 @@ from ics.utils import remove_sequence, remove_x
 
 
 class CalendarParser(Parser):
-    @option(required=True)
+    @option(required=False)
     def parse_prodid(calendar, prodid):
-        calendar._creator = prodid.value
+        if prodid:
+            calendar._creator = prodid.value
 
     _version_default = [ContentLine(name="VERSION", value="2.0")]
 
@@ -23,6 +24,22 @@ class CalendarParser(Parser):
             _, calendar.version = version.value.split(";")
         else:
             calendar.version = version.value
+
+    # extracts X-WR-CALNAME
+    def parse_x_wr_calname(calendar, line):
+        if line:
+            calendar.name = line.value
+
+    # extracts X-WR-TIMEZONE
+    def parse_x_wr_timezone(calendar, line):
+        if line:
+            calendar.timezone = line.value
+
+    # extracts X-APPLE-CALENDAR-COLOR
+    def parse_x_apple_calendar_color(calendar, line):
+        if line:
+            if line.value.startswith("#") and len(line.value) >= 7:
+                calendar.color = line.value[:7]
 
     def parse_calscale(calendar, line):
         calscale = line

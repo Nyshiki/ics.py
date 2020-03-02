@@ -49,6 +49,10 @@ class EventParser(Parser):
     def parse_organizer(event, line):
         event.organizer = Organizer.parse(line) if line else None
 
+    # extracts RRULE
+    def parse_rrule(event, line):
+        event._rrule = unescape_string(line.value) if line else None
+
     @option(multiple=True)
     def parse_attendee(event, lines):
         for line in lines:
