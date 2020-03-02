@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from ics import Event
+from ics.event import Event
 from ics.icalendar import Calendar
 from .fixture import cal32
 
@@ -48,7 +48,7 @@ class TestEvent(unittest.TestCase):
 
     def test_fixtures_romeo_juliet(self):
         with open(os.path.join(os.path.dirname(__file__), "fixtures/Romeo-and-Juliet.ics")) as f:
-            event: Event = next(iter(Calendar(f.read()).events))
+            event = next(iter(Calendar(f.read()).events))
         with open(os.path.join(os.path.dirname(__file__), "fixtures/Romeo-and-Juliet.txt")) as f:
             self.assertEqual(event.description, f.read())
 

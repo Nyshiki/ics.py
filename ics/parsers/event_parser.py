@@ -1,6 +1,6 @@
 import re
 
-from ics import Organizer, Attendee
+from ics.event import Organizer, Attendee
 from ics.alarm.utils import get_type_from_container
 from ics.parsers.parser import Parser, option
 from ics.utils import (iso_precision, iso_to_arrow, parse_duration,
