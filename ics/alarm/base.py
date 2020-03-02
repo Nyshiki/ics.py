@@ -44,9 +44,9 @@ class BaseAlarm(Component, metaclass=ABCMeta):
             ValueError: If trigger, repeat, or duration do not match the RFC spec.
         """
         # Set initial values
-        self._trigger: Optional[Union[timedelta, datetime]] = None
-        self._repeat: Optional[int] = None
-        self._duration: Optional[timedelta] = None
+        self._trigger = None
+        self._repeat = None
+        self._duration = None
 
         # Validate and parse
         self.trigger = trigger

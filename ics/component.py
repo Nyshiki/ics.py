@@ -20,8 +20,8 @@ class Component(object):
         parser = Parser
         serializer = Serializer
 
-    _classmethod_args: Tuple
-    _classmethod_kwargs: Dict
+    _classmethod_args = None  # type: Tuple
+    _classmethod_kwargs = None  # type: Dict
 
     @classmethod
     def _from_container(cls, container: Container, *args: Any, **kwargs: Any):

@@ -1,12 +1,10 @@
-from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
+from collections import namedtuple
 
 from ics.grammar.parse import ContentLine
 
 
-class ParserOption(NamedTuple):
-    required: bool = False
-    multiple: bool = False
-    default: Optional[List[ContentLine]] = None
+ParserOption = namedtuple("ParserOption", ["required", "multiple", "default"])
 
 
 class Parser:

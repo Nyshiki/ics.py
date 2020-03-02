@@ -6,7 +6,7 @@ import tatsu
 
 grammar_path = Path(__file__).parent.joinpath('contentline.ebnf')
 
-with open(grammar_path) as fd:
+with open(str(grammar_path)) as fd:
     GRAMMAR = tatsu.compile(fd.read())
 
 

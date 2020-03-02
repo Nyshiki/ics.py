@@ -18,7 +18,7 @@ class Person(object):
         self.common_name = common_name or email
         self.dir = dir
         self.sent_by = sent_by
-        self.extra: Dict[str, List[str]] = {}
+        self.extra = {}
 
     @classmethod
     def parse(cls, line: ContentLine) -> "Person":

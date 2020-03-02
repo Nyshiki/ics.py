@@ -66,8 +66,8 @@ class Todo(Component):
             ValueError: if `duration` and `due` are specified at the same time
         """
 
-        self._percent: Optional[int] = None
-        self._priority: Optional[int] = None
+        self._percent = None  # type: Optional[int]
+        self._priority = None  # type: Optional[int]
         self._begin = None
         self._due_time = None
         self._duration = None
@@ -83,7 +83,7 @@ class Todo(Component):
         self.priority = priority
         self.name = name
         self.url = url
-        self.alarms: List[BaseAlarm] = list()
+        self.alarms = list()  # type: List[BaseAlarm]
         self.extra = Container(name='VTODO')
 
         if duration and due:

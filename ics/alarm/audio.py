@@ -28,7 +28,7 @@ class AudioAlarm(BaseAlarm):
     ):
 
         super().__init__(trigger, repeat, duration)
-        self._sound: Optional[ContentLine] = None
+        self._sound = None
 
     @property
     def action(self):
