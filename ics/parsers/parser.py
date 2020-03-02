@@ -5,6 +5,7 @@ from ics.grammar.parse import ContentLine
 
 
 ParserOption = namedtuple("ParserOption", ["required", "multiple", "default"])
+ParserOption.__new__.__defaults__ = (False, False, None)
 
 
 class Parser:
