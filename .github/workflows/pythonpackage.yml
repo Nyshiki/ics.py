@@ -1,29 +1,94 @@
-name: Test
+name: ⚙️
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
-      max-parallel: 4
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        experimental: [false]
+        python-version:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "pypy-3.8"
+          - "pypy-3.9"
+#        include:
+#          - python-version: "3.13"
+#            experimental: true
+#            experimental-format: (🧪)
+
+    name: Test with Python ${{ matrix.python-version }} ${{ matrix.experimental-format }}
 
     steps:
     - uses: actions/checkout@master
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip setuptools
-        pip install -r requirements.txt -r dev/requirements-test.txt
-    - name: Static checking with mypy
-      run: |
-        mypy ics
-    - name: Run pytest
-      run: |
-        python setup.py test
+        allow-prereleases: true
+    - name: Install tox
+      run: python -m pip install --upgrade tox tox-gh-actions
+    - name: Run tox
+      run: tox
+    - name: Publish coverage
+      run:
+        rm -rf ./.mypy_cache/;
+        bash <(curl https://codecov.io/bash)
+  build:
+    needs: [test]
+
+    name: Build package
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install build dependencies
+      run: pip install build twine
+
+    - name: Build the package
+      run: python -m build
+
+    - name: Check the package
+      run: twine check dist/*
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    needs: [build]
+
+    name: Publish package to PyPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install build dependencies
+        run: pip install build
+
+      - name: Build (again) the package
+        run: python -m build
+
+      - name: Publish package 📦 to PyPI 🎉
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
