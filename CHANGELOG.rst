@@ -1,26 +1,157 @@
-============
-Ics.py changelog
-============
+=========
+Changelog
+=========
 
-**************
+*Major releases are named in honor of influential women who shaped modern computer technology*
+
+All notable changes to this project will be documented in this file.
+
+The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
+and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
+
+
+***************************
 0.8 (in dev) - Grace Hopper
-**************
+***************************
+
+*Grace Hopper was mathematician and rear admiral who was a pioneer in developing computer technology,
+helping to devise UNIVAC I, the first commercial electronic computer and FLOW-MATIC on which COBOL was based*.
 
 This is a major release in the life of ics.py as it fixes a lot of long standing
-(design) issues with timespans, removes Arrow and introduces `attrs`.
+(design) issues with timespans, removes `arrow` and introduces `attrs`.
 Thank you @N-Coder for the huge work you put in this!
 
-In progress:
- - Remove Arrow
+What's new in 0.8?
+------------------
+
+**Lists instead of sets**
+
+`Calendar.events`, `Calendar.todos`, `Event.attendees` and `Event.alarms` are now all instances of `list` instead
+`set` in order to keep the order they had in the original ics file.
+Use `.append()` instead of `.add()` to insert new entries.
+Example:
+
+.. code-block:: python
+
+ c = Calendar()
+ e = Event()
+ e.summary = "My cool event"
+ c.events.append(e)
+
+**Serialization**
+
+`Calendar`, `Event`, ... have a new string / serialization behaviour:
+
+- `__repr__` returns a full, valid python representation, is fast and can't throw exceptions
+- `__str__` returns a short human-readable description, is fast and can't throw exceptions
+- `serialize` returns the full RFC5545 ics representation is string form, is still pretty fast and usually shouldn't
+  throw exceptions (except for when you pass in data that can't be serialized, this potentially includes old
+  `Arrow` instances)
+This means that for example to write a `Calendar` to a file, you should do something like:
+
+.. code-block:: python
+
+ c = ics.Calendar()
+ with open("my.ics", "w") as f:
+     f.write(c.serialize())
+
+**Removal of `arrow`**
+
+Our dependency on `arrow` is now removed. Please now exclusively use built-in `datetime` and `timedelta` instead.
+Example:
+
+.. code-block:: python
+
+ e = Event()
+ e.begin = datetime.fromisoformat("2022-06-06T12:05:23+02:00")
+ e.end = datetime(
+     year=2022,
+     month=6,
+     day=6,
+     hour=12,
+     minute=5,
+     second=23,
+     tzinfo=timezone(timedelta(seconds=7200)),
+ )
+
+Exhaustive list
+---------------
+
+**Added**
+ - Support for parsing and serializing timezones
+ - `Calendar` constructor / parse methods
+ - Support for soon to be released Python 3.12
+ - Dependency on `attrs`. `Calendar`, `Event`, ... are all now `attrs` classes.
+
+**Changed**
+ - New string / serialization behaviour (see above)
+ - Renamed `Event.name` to `Event.summary`
+ - Some attributes now have further validators that restrict which values they can be set to
+ - `Event.attendees` and `Event.organizer` now must be instances of the respective classes, plain strings with the e-mail
+   are no longer allowed
+ - To avoid user error, `extra` can now only contain nested `Container` and `ContentLine`, no plain strings
+ - The method `Event.has_end()` has been removed in favor if now property `Event.has_explicit_end` as any the RFC
+   says that every `Event` with a begin time has an end.
+
+**Removed**
+ - Support for `EOL <https://devguide.python.org/versions/>`_ Python 3.7
+ - Dependency on `arrow` (see above)
+ - `Calendar._timezones` attribute
+ - `Event.join()`
+
+**Fixed**
  - Fix all-day issues
- - Add attrs
  - Fix timezone issues
  - Fix SEQUENCE bug
- - Introduce Timespan
 
-**************
+**Internal changes**
+ - `ics.grammar.parse` has been moved to `ics.grammar`.
+ - The inner `Meta` classes were replaced by a single `NAME` class attribute
+ - The `Component` conversion methods are now called `from_container` and `to_container`.
+ - For `ContentLine`/`Container` there's now a `serialize` method to convert them to ics strings.
+ - Introduced Timespan
+ - `dtstamp` and `created` have been separated, `dtstamp` is the only one set automatically
+
+*****
+0.7.2
+*****
+
+This is a bugfix release.
+
+Bug fix:
+ - Add a lower bound (`>=19.1.0`) on the required version of
+   `attrs` `#353 <https://github.com/ics-py/ics-py/issues/353>`_ (bug introduced in 0.7.1)
+
+
+*****
+0.7.1
+*****
+
+This release contains a few minor changes and introduces deprecations for
+features that will be removed in 0.8.
+
+Deprecation:
+ - Add warnings about breaking changes in v0.8 to `Calendar.str()` and `.iter()`.
+
+Minor changes:
+ - Add a dependency on `attrs <https://pypi.org/project/attrs/>`_.
+ - Remove the upper bound on the version of `arrow <https://pypi.org/project/arrow/>`_.
+ - Backport optimizations for TatSu parser from 0.8
+
+Bug fix:
+ - Fix "falsey" (`bool(x) is False`) alarm trigger (i.e. `timedelta(0)`) not being serialized
+   `#269 <https://github.com/ics-py/ics-py/issues/269>`_
+
+Known bugs:
+ - Missing lower bound on the required version of `attrs` (`>=19.1.0`) `#353 <https://github.com/ics-py/ics-py/issues/353>`_
+
+***********************
 0.7 - Katherine Johnson
-**************
+***********************
+
+*Katherine Johnson was a mathematician whose calculations of orbital mechanics at NASA
+were critical to the success of the firsts crewed spaceflights.
+She helped pioneer the use of computers to perform these tasks at NASA.*
 
 Special thanks to @N-Coder for making 0.7 happen!
 
@@ -39,9 +170,12 @@ Bug fixes:
  - Fix multiple bugs in Organizer and Attendees properties.
    (See #207, #209, #217, #218)
 
-**************
-0.6
-**************
+*******************
+0.6 - Sophie Wilson
+*******************
+
+*Sophie Wilson is an computer scientist who was instrumental in designing the
+BBC Micro, including the BBC BASIC language, and the ARM instruction set*
 
 Major changes:
  - Drop support for Python 3.5. Python 3.7 is now distributed in both Ubuntu LTS
@@ -71,9 +205,12 @@ Bug fixes:
  - Fix parsing of quoted values as well as escaped semi-columns (#185 and #193)
 
 
-**************
-0.5
-**************
+********************
+0.5 - Adele Goldberg
+********************
+
+*Adele Goldberg is a computer scientist who participated in developing Smalltalk-80 and
+various concepts related to object-oriented programming while working as a researcher at Xerox.*
 
 This is the first version to be Python 3 only.
 
@@ -102,7 +239,7 @@ Bug fixes:
 
 Known issues:
  - There are known problems with all-day events. This GitHub issue summarizes them
-   well: https://github.com/C4ptainCrunch/ics.py/issues/155. You can expect them to
+   well: https://github.com/ics-py/ics-py/issues/155. You can expect them to
    be fixed in 0.6 but not before.
 
 Misc:
@@ -112,9 +249,12 @@ Misc:
 
 Thanks also to @t00n, @aureooms, @chauffer, @seants, @davidjb, @xaratustrah, @Philiptpp
 
-**************
-0.4
-**************
+**************************
+0.4 - Elizabeth J. Feinler
+**************************
+
+*Elizabeth J. Feinler is an information scientist. She led the NIC for the ARPANET
+as it evolved into the Defense Data Network (DDN) and then the Internet.*
 
 Last version to support Python 2.7 and 3.3.
 
@@ -152,7 +292,7 @@ Thank you also to @davidjb, @etnarek, @jammon
  - Events in an `EventList()` are now always sorted
  - Freeze the version of Arrow (they made backwards-incompatible changes)
  - Add a lot of tests
- - Lots of small bugfixes
+ - Lots of small bug fixes
 
 *******
 0.1.3

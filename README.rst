@@ -1,13 +1,13 @@
-Ics.py : iCalendar for Humans
-=============================
+ics.py `0.8.0.dev0` : iCalendar for Humans
+==========================================
 
-`Original repository <https://github.com/C4ptainCrunch/ics.py>`_ (GitHub) -
-`Bugtracker and issues <https://github.com/C4ptainCrunch/ics.py/issues>`_ (GitHub) -
+`Original repository <https://github.com/ics-py/ics-py>`_ (GitHub) -
+`Bugtracker and issues <https://github.com/ics-py/ics-py/issues>`_ (GitHub) -
 `PyPi package <https://pypi.python.org/pypi/ics/>`_ (ics) -
 `Documentation <http://icspy.readthedocs.org/>`_ (Read The Docs).
 
 
-.. image:: https://img.shields.io/github/license/c4ptaincrunch/ics.py.svg
+.. image:: https://img.shields.io/pypi/l/ics
     :target: https://pypi.python.org/pypi/ics/
     :alt: Apache 2 License
 
@@ -27,7 +27,7 @@ iCalendar (file extension `.ics`) is used by Google Calendar,
 Apple Calendar, Android and many more.
 
 
-Ics.py is available for Python>=3.6 and is Apache2 Licensed.
+Ics.py is available for Python 3.8, 3.9, 3.10, 3.11, 3.12 and is Apache2 Licensed.
 
 
 
@@ -38,24 +38,26 @@ Quickstart
 
     $ pip install ics
 
-
-
 .. code-block:: python
 
-    from ics import Calendar, Event
-    c = Calendar()
-    e = Event()
-    e.name = "My cool event"
-    e.begin = '2014-01-01 00:00:00'
-    c.events.add(e)
-    c.events
-    # [<Event 'My cool event' begin:2014-01-01 00:00:00 end:2014-01-01 00:00:01>]
-    with open('my.ics', 'w') as my_file:
-        my_file.writelines(c)
-    # and it's done !
+ from datetime import datetime
+ from ics import Calendar, Event
+
+ c = Calendar()
+ e = Event()
+ e.summary = "My cool event"
+ e.description = "A meaningful description"
+ e.begin = datetime.fromisoformat("2022-06-06T12:05:23+02:00")
+ e.end = datetime.fromisoformat("2022-06-06T13:05:23+02:00")
+ c.events.append(e)
+ c
+ # Calendar(extra=Container('VCALENDAR', []), extra_params={}, version='2.0', prodid='ics.py 0.8.0.dev0 - http://git.io/lLljaA', scale=None, method=None, events=[Event(extra=Container('VEVENT', []), extra_params={}, timespan=EventTimespan(begin_time=datetime.datetime(2022, 6, 6, 12, 5, 23, tzinfo=datetime.timezone(datetime.timedelta(seconds=7200))), end_time=None, duration=None, precision='second'), summary=None, uid='ed7975c7-01f1-42eb-bfc4-435afd76b33d@ed79.org', description=None, location=None, url=None, status=None, created=None, last_modified=None, dtstamp=datetime.datetime(2022, 6, 6, 19, 28, 14, 575558, tzinfo=Timezone.from_tzid('UTC')), alarms=[], attach=[], classification=None, transparent=None, organizer=None, geo=None, attendees=[], categories=[])], todos=[])
+ with open("my.ics", "w") as f:
+     f.write(c.serialize())
 
 More examples are available in the
 `documentation <http://icspy.readthedocs.org/>`_.
+
 
 Documentation
 -------------
@@ -65,44 +67,15 @@ All the `documentation <http://icspy.readthedocs.org/>`_ is hosted on
 at every commit.
 
 * `Quickstart <http://icspy.readthedocs.org/>`_
-* `API <http://icspy.readthedocs.org/en/latest/api.html>`_
-* `About <http://icspy.readthedocs.org/en/latest/about.html>`_
+* `API <https://icspy.readthedocs.io/en/stable/api.html>`_
+* `About <https://icspy.readthedocs.io/en/stable/about.html>`_
 
 
 Contribute
 ----------
 
-Contribution are welcome of course! For more information, see
-`contributing <https://github.com/C4ptainCrunch/ics.py/blob/master/CONTRIBUTING.rst>`_.
-
-
-Testing & Docs
---------------
-
-.. code-block:: bash
-
-    # setup virtual environment
-    $ sudo pip install virtualenv
-    $ virtualenv ve
-    $ source ve/bin/activate
-
-    # tests
-    $ pip install -r requirements.txt
-    $ pip install -r dev/requirements-test.txt
-    $ python setup.py test
-
-    # tests coverage
-    $ pip install -r requirements.txt
-    $ pip install -r dev/requirements-test.txt
-    $ python setup.py test
-    $ coverage html
-    $ firefox htmlcov/index.html
-
-    # docs
-    $ pip install -r requirements.txt
-    $ pip install -r dev/requirements-doc.txt
-    $ cd doc
-    $ make html
+Contribution are welcome of course! For more information and how to setup, see
+`contributing <https://github.com/ics-py/ics-py/blob/master/CONTRIBUTING.rst>`_.
 
 
 Links
@@ -111,6 +84,6 @@ Links
 * `Vulgarised RFC <http://www.kanzaki.com/docs/ical/>`_
 
 .. image:: http://i.imgur.com/KnSQg48.jpg
-    :target: https://github.com/C4ptainCrunch/ics.py
+    :target: https://github.com/ics-py/ics-py
     :alt: Parse ALL the calendars!
     :align: center

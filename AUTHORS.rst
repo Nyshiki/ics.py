@@ -8,9 +8,11 @@ with the excellent help of `Niko Fink <https://github.com/N-Coder>`_.
 Other contributors, listed alphabetically, are:
 
 * `@aureooms <https://github.com/aureooms>`_
+* `@azh412 <https://github.com/azh412>`_
 * `@Azhrei <https://github.com/Azhrei>`_
 * `@ConnyOnny <https://github.com/ConnyOnny>`_
 * `@danieltellez <https://github.com/danieltellez>`_
+* `@dakalamin <https://github.com/dakalamin>`_
 * `@davidjb <https://github.com/davidjb>`_
 * `@etnarek <https://github.com/etnarek>`_
 * `@gbovyn <https://github.com/gbovyn>`_
@@ -30,7 +32,9 @@ Other contributors, listed alphabetically, are:
 * `@seants <https://github.com/seants>`_
 * `@tgamauf <https://github.com/tgamauf>`_
 * `@Timic3 <https://github.com/Timic3>`_
+* `@tomschr <https://github.com/tomschr>`_
 * `@Trii <https://github.com/Trii>`_
+* `@vyper0016 <https://github.com/vyper0016>`_
 * `@zagnut007 <https://github.com/zagnut007>`_
 * `@zuphilip <https://github.com/zuphilip>`_
 
@@ -38,10 +42,10 @@ Many thanks for your contributions!
 
 There are also a few modules or functions incorporated from other
 authors and projects:
+- The code of ``ics.timezone.Timezone._find_observance_cachable`` is adapted from the respective function of dateutil
 
-* ``utils.iso_precision`` includes something like 10 lines of Arrow's, code,
-  which is written by Chris Smith and under Apache license
+Thanks to:
 
-
-A big part of the code was written at `UrLab <http://urlab.be>`_, an awesome
-hackerspace in `ULB <http://ulb.ac.be>`_ in Brussels, Belgium.
+* `python-dateutil <https://dateutil.readthedocs.io/en/stable>`_ for parsing VTIMEZONEs and RRULEs,
+* `six <https://six.readthedocs.io>`_ to have made the python3 transition easier,
+* `#urlab <irc://freenode.org#urlab>`_ for help and advice.
